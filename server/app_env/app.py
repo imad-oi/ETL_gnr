@@ -11,6 +11,7 @@ config = None
 uploaded_columns = []
 
 
+
 @app.route('/')
 def hello():
     return 'Hello, World!'
@@ -67,6 +68,14 @@ def upload_file():
         "config": fields,
         "data": columns
     }), 200
+
+
+@app.route('/save', methods=['POST'])
+def upload_file():
+      uploaded_columns_dict = {}
+      mapped_columns_df = df[list(uploaded_columns_dict.values())]
+
+      data_array = mapped_columns_df.to_dict(orient='records')
 
 
 if __name__ == '__main__':
