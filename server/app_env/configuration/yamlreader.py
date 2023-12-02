@@ -8,27 +8,28 @@ def read_config(file):
         config_data = yaml.safe_load(file)
 
         database = DataBase()
-        database.name = config_data['database']['name']
-        database.host = config_data['database']['host']
-        database.port = config_data['database']['port']
-        database.username = config_data['database']['username']
-        database.password = config_data['database']['password']
+        if config_data['database'] is not None:
+            dbconfig = config_data['database']
+            database.name = dbconfig['name']
+            database.host = dbconfig['host']
+            database.port = dbconfig['port']
+            database.username = dbconfig['username']
+            database.password = dbconfig['password']
 
-        for table_data in config_data['database']['tables']:
-            table = Table()
-            table.name = table_data['name']
+            if dbconfig['tables'] is not None:
+                for table_data in dbconfig['tables']:
+                    table = Table()
+                    table.name = table_data['name']
 
-            for field_data in table_data['fields']:
-                field = Fields()
-                field.name = field_data['name']
-                field.type = field_data['type']
-                table.fields.append(field)
+                    if table_data['fields'] is not None:
+                        for field_data in table_data['fields']:
+                            field = Fields()
+                            field.name = field_data['name']
+                            table.fields.append(field)
 
-            database.tables.append(table)
+                    database.tables.append(table)
 
-        print(database)
         return database
-
     except yaml.YAMLError as e:
         print(f"Error reading YAML file: {e}")
         return None

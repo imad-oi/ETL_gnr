@@ -1,3 +1,5 @@
+import json
+
 import pandas as pd
 from flask import Flask, request, jsonify
 from flask_cors import CORS
@@ -8,8 +10,8 @@ app = Flask(__name__)
 CORS(app)
 
 config = None
+dataframe: pd.DataFrame
 uploaded_columns = []
-
 
 
 @app.route('/')
@@ -18,12 +20,13 @@ def hello():
 
 
 def fetch_columns(file):
+    global dataframe
     try:
         if file.filename == '':
             return {'error': 'No file selected'}, 400
 
-        df = pd.read_excel(file)
-        uploaded_columns.extend(df.columns.tolist())
+        dataframe = pd.read_excel(file)
+        uploaded_columns.extend(dataframe.columns.tolist())
         return True, uploaded_columns, None
     except Exception as e:
         return False, [], str(e)
@@ -70,12 +73,16 @@ def upload_file():
     }), 200
 
 
-@app.route('/save', methods=['POST'])
-def upload_file():
-      uploaded_columns_dict = {}
-      mapped_columns_df = df[list(uploaded_columns_dict.values())]
+def convert(fields_columns: {}) -> []:
+    mapped_columns_df = dataframe[list(fields_columns.values())]
+    return mapped_columns_df.to_dict(orient='records')
 
-      data_array = mapped_columns_df.to_dict(orient='records')
+
+@app.route('/save', methods=['POST'])
+def save_data():
+    fields_columns = request.json
+    data = convert(fields_columns)
+    return jsonify({"data": data}), 200
 
 
 if __name__ == '__main__':

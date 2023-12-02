@@ -4,7 +4,6 @@ import json
 class Fields:
     def __init__(self):
         self.name = ""
-        self.type = ""
 
 
 class Table:
