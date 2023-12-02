@@ -1,0 +1,13 @@
+database:
+  name: "etl"
+  host: "localhost"
+  port: 3036
+  username: "root"
+  password: ""
+  tables:
+    - name: "Table1"
+      fields:
+        - name: "Field1"
+          type: "FieldType1"
+        - name: "Field2"
+          type: "FieldType2"

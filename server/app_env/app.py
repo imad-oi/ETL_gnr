@@ -1,45 +1,74 @@
-from flask import Flask, request
-from flask_cors import CORS
 import pandas as pd
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+
+from server.app_env.configuration.yamlreader import read_config
 
 app = Flask(__name__)
-
 CORS(app)
+
+config = None
+uploaded_columns = []
+
+
 @app.route('/')
 def hello():
     return 'Hello, World!'
 
-uploaded_columns = []  # Initialisez la liste des noms de colonnes
+
+def fetch_columns(file):
+    try:
+        if file.filename == '':
+            return {'error': 'No file selected'}, 400
+
+        df = pd.read_excel(file)
+        uploaded_columns.extend(df.columns.tolist())
+        return True, uploaded_columns, None
+    except Exception as e:
+        return False, [], str(e)
+
+
+def fetch_config(file):
+    global config
+
+    try:
+        if file.filename != '':
+            config = read_config(file)
+            fields = [f.name for f in config.tables[0].fields]
+
+            return True, fields
+    except RuntimeError as e:
+        raise RuntimeError("Error processing the file") from e
+
 
 @app.route('/upload', methods=['POST'])
 def upload_file():
-    if 'file' not in request.files:
-        return {'error': 'No file provided'}, 400
+    global config, uploaded_columns
 
-    file = request.files['file']
+    if 'data' not in request.files or 'config' not in request.files:
+        return {'error': 'Both data and config files are required'}, 400
 
-    if file.filename == '':
-        return {'error': 'No file selected'}, 400
+    data_file = request.files['data']
+    config_file = request.files['config']
+
+    success, columns, error = fetch_columns(data_file)
+
+    if not success:
+        return {'error': error}, 500
 
     try:
-        # Lire le fichier Excel avec pandas
-        df = pd.read_excel(file)
-
-        # Stocker les noms de colonnes dans la liste uploaded_columns
-        uploaded_columns.extend(df.columns.tolist())
-
-        # Convertir le DataFrame en liste de dictionnaires si nécessaire
-        data_array = df.to_dict('records')
-
-        # Faites quelque chose avec data_array, comme le stocker dans une base de données
-        # Ou effectuer des opérations spécifiques sur les données
-
-        return {'success': True, 'uploaded_columns': uploaded_columns}, 200
-
-    except Exception as e:
+        success, fields = fetch_config(config_file)
+        if not success:
+            raise RuntimeError("Error processing the file")
+    except RuntimeError as e:
         return {'error': str(e)}, 500
+
+    return jsonify({
+        "config": fields,
+        "data": columns
+    }), 200
+
 
 if __name__ == '__main__':
     # activate debug mode
-    app.debug = True
-    app.run()
+    app.run(debug=True)
