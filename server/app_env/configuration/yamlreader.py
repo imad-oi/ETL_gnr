@@ -25,6 +25,7 @@ def read_config(file):
                         for field_data in table_data['fields']:
                             field = Fields()
                             field.name = field_data['name']
+                            field.type = field_data['type']
                             table.fields.append(field)
 
                     database.tables.append(table)

@@ -1,15 +1,17 @@
-import json
+import io
 
+import mysql.connector
 import pandas as pd
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_file
 from flask_cors import CORS
 
+from server.app_env.configuration.classes import DataBase
 from server.app_env.configuration.yamlreader import read_config
 
 app = Flask(__name__)
 CORS(app)
 
-config = None
+config: DataBase = DataBase()
 dataframe: pd.DataFrame
 uploaded_columns = []
 
@@ -78,13 +80,63 @@ def convert(fields_columns: {}) -> []:
     return mapped_columns_df.to_dict(orient='records')
 
 
+def insert(data) -> []:
+    # Connexion à la base de données MySQL
+    conn = mysql.connector.connect(
+        host="localhost",
+        user='root',
+        password='',
+        database='etl'
+    )
+    cursor = conn.cursor()
+
+    # create the table
+    table = config.tables[0]
+    fields = ", ".join([f"`{field.name}` {field.type}" for field in table.fields])
+    insert_query = f"""
+    CREATE TABLE IF NOT EXISTS `{table.name}` (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        {fields}
+    );
+    """
+    cursor.execute(insert_query)
+
+    # insert data to the table
+    errors_data = []
+    for row in data:
+        try:
+            insert_query = (f"INSERT INTO `{table.name}` "
+                            f"({', '.join(map(lambda k: f'`{k}`', row.keys()))}) "
+                            f"VALUES ({', '.join(['%s'] * len(row))})")
+            values = list(row.values())
+            cursor.execute(insert_query, tuple(values))
+            conn.commit()
+        except Exception:
+            errors_data.append(row)
+    conn.close()
+    return errors_data
+
+
 @app.route('/save', methods=['POST'])
 def save_data():
     fields_columns = request.json
     data = convert(fields_columns)
-    return jsonify({"data": data}), 200
+    errors = insert(data)
+    errors_df = pd.DataFrame(errors)
+
+    # Save DataFrame to CSV in-memory
+    csv_data = io.BytesIO()
+    errors_df.to_csv(csv_data, index=False)
+    csv_data.seek(0)
+
+    # Send CSV file back to the client
+    return send_file(
+        csv_data,
+        mimetype='text/csv',
+        as_attachment=True,
+        download_name='errors.csv'
+    )
 
 
 if __name__ == '__main__':
-    # activate debug mode
     app.run(debug=True)

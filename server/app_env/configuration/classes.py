@@ -4,6 +4,7 @@ import json
 class Fields:
     def __init__(self):
         self.name = ""
+        self.type = ""
 
 
 class Table:
@@ -50,6 +51,7 @@ class DataBaseJSONEncoder(json.JSONEncoder):
         elif isinstance(obj, Fields):
             return {
                 "name": obj.name,
+                "type": obj.type
             }
         return super(DataBaseJSONEncoder, self).default(obj)
 
